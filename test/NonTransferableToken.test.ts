@@ -2,23 +2,27 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { NonTransferableToken } from "../typechain-types";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 describe("NonTransferableToken", function () {
+
+  const NON_TRANSFERABLE_ERROR_MESSAGE = 'Cannot transfer a non-transferable token!';
 
   describe('hello function', () => {
 
     it("returns the string 'hello'", async function () {
 
-      const [ownerAddress, aliceAddress, bobAddress, charlieAddress] = await ethers.getSigners();
+      const [owner, alice, bob, charlie] = await ethers.getSigners();
 
       const NonTransferableToken = await ethers.getContractFactory("NonTransferableToken");
       const nonTransferableToken = await NonTransferableToken.deploy();
       await nonTransferableToken.deployed();
 
-      expect(await nonTransferableToken.connect(ownerAddress).hello()).to.equal('hello');
-      expect(await nonTransferableToken.connect(aliceAddress).hello()).to.equal('hello');
-      expect(await nonTransferableToken.connect(bobAddress).hello()).to.equal('hello');
-      expect(await nonTransferableToken.connect(charlieAddress).hello()).to.equal('hello');
+      expect(await nonTransferableToken.connect(owner).hello()).to.equal('hello');
+      expect(await nonTransferableToken.connect(alice).hello()).to.equal('hello');
+      expect(await nonTransferableToken.connect(bob).hello()).to.equal('hello');
+      expect(await nonTransferableToken.connect(charlie).hello()).to.equal('hello');
 
     });
 
@@ -28,140 +32,67 @@ describe("NonTransferableToken", function () {
 
     it("allows anyone to mint the next token to themselves", async function () {
 
-      const [ownerAddress, aliceAddress, bobAddress, charlieAddress] = await ethers.getSigners();
+      const [owner, alice, bob, charlie] = await ethers.getSigners();
 
       const NonTransferableToken = await ethers.getContractFactory("NonTransferableToken");
       const nonTransferableToken = await NonTransferableToken.deploy();
       await nonTransferableToken.deployed();
 
-      await nonTransferableToken.connect(ownerAddress).mint();
+      expect(await nonTransferableToken.next_token_id()).to.equal(0);
 
+      await nonTransferableToken.connect(owner).mint();
+
+      expect(await nonTransferableToken.ownerOf(0)).to.equal(owner.address);
       expect(await nonTransferableToken.next_token_id()).to.equal(1);
 
-      expect(await nonTransferableToken.connect(aliceAddress).hello()).to.equal('hello');
-      expect(await nonTransferableToken.connect(bobAddress).hello()).to.equal('hello');
-      expect(await nonTransferableToken.connect(charlieAddress).hello()).to.equal('hello');
+      await nonTransferableToken.connect(alice).mint();
+
+      expect(await nonTransferableToken.ownerOf(1)).to.equal(alice.address);
+      expect(await nonTransferableToken.next_token_id()).to.equal(2);
+
+      await nonTransferableToken.connect(bob).mint();
+
+      expect(await nonTransferableToken.ownerOf(2)).to.equal(bob.address);
+      expect(await nonTransferableToken.next_token_id()).to.equal(3);
+
+      await nonTransferableToken.connect(charlie).mint();
+
+      expect(await nonTransferableToken.ownerOf(3)).to.equal(charlie.address);
+      expect(await nonTransferableToken.next_token_id()).to.equal(4);
 
     });
 
   });
 
-  // describe("", function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshot in every test.
-  // async function deployOneYearLockFixture() {
-  //   const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  //   const ONE_GWEI = 1_000_000_000;
+  describe('Nontransferability', () => {
 
-  //   const lockedAmount = ONE_GWEI;
-  //   const unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
+    let owner: SignerWithAddress, alice: SignerWithAddress, bob: SignerWithAddress, charlie: SignerWithAddress;
+    let nonTransferableToken: NonTransferableToken;
 
-  //   // Contracts are deployed using the first signer/account by default
-  //   const [owner, otherAccount] = await ethers.getSigners();
+    beforeEach(async () => {
 
-  //   const Lock = await ethers.getContractFactory("Lock");
-  //   const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+      const NonTransferableToken = await ethers.getContractFactory("NonTransferableToken");
+      nonTransferableToken = await NonTransferableToken.deploy();
+      await nonTransferableToken.deployed();
 
-  //   return { lock, unlockTime, lockedAmount, owner, otherAccount };
-  // }
+      [owner, alice, bob, charlie] = await ethers.getSigners();
 
-  // describe("Deployment", function () {
-  // it("Should set the right unlockTime", async function () {
-  //   const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
+      await nonTransferableToken.connect(owner).mint();
+      await nonTransferableToken.connect(alice).mint();
+      await nonTransferableToken.connect(bob).mint();
+      await nonTransferableToken.connect(charlie).mint();
 
-  //   expect(await lock.unlockTime()).to.equal(unlockTime);
-  // });
+    })
 
-  // it("Should set the right owner", async function () {
-  //   const { lock, owner } = await loadFixture(deployOneYearLockFixture);
+    it('cannot be transferred with "transferFrom" function', async () => {
 
-  //   expect(await lock.owner()).to.equal(owner.address);
-  // });
+      await expect(nonTransferableToken.connect(owner).transferFrom(owner.address, alice.address, 0)).to.be.revertedWith(NON_TRANSFERABLE_ERROR_MESSAGE);
+      await expect(nonTransferableToken.connect(alice).transferFrom(owner.address, alice.address, 1)).to.be.revertedWith(NON_TRANSFERABLE_ERROR_MESSAGE);
+      await expect(nonTransferableToken.connect(bob).transferFrom(owner.address, alice.address, 2)).to.be.revertedWith(NON_TRANSFERABLE_ERROR_MESSAGE);
+      await expect(nonTransferableToken.connect(charlie).transferFrom(owner.address, alice.address, 3)).to.be.revertedWith(NON_TRANSFERABLE_ERROR_MESSAGE);
 
-  // it("Should receive and store the funds to lock", async function () {
-  //   const { lock, lockedAmount } = await loadFixture(
-  //     deployOneYearLockFixture
-  //   );
+    })
 
-  //   expect(await ethers.provider.getBalance(lock.address)).to.equal(
-  //     lockedAmount
-  //   );
-  // });
+  })
 
-  // it("Should fail if the unlockTime is not in the future", async function () {
-  //   // We don't use the fixture here because we want a different deployment
-  //   const latestTime = await time.latest();
-  //   const Lock = await ethers.getContractFactory("Lock");
-  //   await expect(Lock.deploy(latestTime, { value: 1 })).to.be.revertedWith(
-  //     "Unlock time should be in the future"
-  //   );
-  // });
-  // });
-
-  // describe("Withdrawals", function () {
-  // describe("Validations", function () {
-  //   it("Should revert with the right error if called too soon", async function () {
-  //     const { lock } = await loadFixture(deployOneYearLockFixture);
-
-  //     await expect(lock.withdraw()).to.be.revertedWith(
-  //       "You can't withdraw yet"
-  //     );
-  //   });
-
-  //   it("Should revert with the right error if called from another account", async function () {
-  //     const { lock, unlockTime, otherAccount } = await loadFixture(
-  //       deployOneYearLockFixture
-  //     );
-
-  //     // We can increase the time in Hardhat Network
-  //     await time.increaseTo(unlockTime);
-
-  //     // We use lock.connect() to send a transaction from another account
-  //     await expect(lock.connect(otherAccount).withdraw()).to.be.revertedWith(
-  //       "You aren't the owner"
-  //     );
-  //   });
-
-  //   it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-  //     const { lock, unlockTime } = await loadFixture(
-  //       deployOneYearLockFixture
-  //     );
-
-  //     // Transactions are sent using the first signer by default
-  //     await time.increaseTo(unlockTime);
-
-  //     await expect(lock.withdraw()).not.to.be.reverted;
-  //   });
-  // });
-
-  // describe("Events", function () {
-  // it("Should emit an event on withdrawals", async function () {
-  //   const { lock, unlockTime, lockedAmount } = await loadFixture(
-  //     deployOneYearLockFixture
-  //   );
-
-  //   await time.increaseTo(unlockTime);
-
-  //   await expect(lock.withdraw())
-  //     .to.emit(lock, "Withdrawal")
-  //     .withArgs(lockedAmount, anyValue); // We accept any value as `when` arg
-  // });
-  // });
-
-  // describe("Transfers", function () {
-  // it("Should transfer the funds to the owner", async function () {
-  //   const { lock, unlockTime, lockedAmount, owner } = await loadFixture(
-  //     deployOneYearLockFixture
-  //   );
-
-  //   await time.increaseTo(unlockTime);
-
-  //   await expect(lock.withdraw()).to.changeEtherBalances(
-  //     [owner, lock],
-  //     [lockedAmount, -lockedAmount]
-  //   );
-  // });
-  // });
-  // });
 });

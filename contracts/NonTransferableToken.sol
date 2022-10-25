@@ -18,4 +18,13 @@ contract NonTransferableToken is ERC721 {
         _mint(msg.sender, next_token_id);
         next_token_id++;
     }
+
+    function _transfer(
+        address from,
+        address to,
+        uint tokenId
+    ) internal pure override {
+        revert('Cannot transfer a non-transferable token!');
+    }
+
 }

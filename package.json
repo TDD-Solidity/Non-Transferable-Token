@@ -1,7 +1,8 @@
 {
   "name": "hardhat-project",
   "scripts": {
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "cov": "hardhat coverage"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.7.0",
