@@ -1,12 +1,13 @@
-# Non-Transferable-Token
+# Sample Hardhat Project
 
-<br/>
+This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
 
-Challenge: Create an ERC721 compatible NFT smart contract that _cannot_ be transferred.
+Try running some of the following tasks:
 
-<br/>
-
-___Hint: Override the `_transfer` function and have it revert with a nice message.___
-
-
-<br/>
+```shell
+npx hardhat help
+npx hardhat test
+REPORT_GAS=true npx hardhat test
+npx hardhat node
+npx hardhat run scripts/deploy.ts
+```
